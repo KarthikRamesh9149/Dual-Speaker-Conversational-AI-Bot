@@ -9,3 +9,7 @@ PyPDF2
 chromadb
 streamlit-webrtc
 sentence-transformers
+torch
+torchvision
+torchaudio
+PyTorch
