@@ -1,0 +1,10 @@
+streamlit
+speechrecognition
+st-audiorec
+requests
+langchain
+langchain_community
+langchain_groq
+python-dotenv
+PyPDF2
+chromadb
