@@ -1,6 +1,5 @@
 streamlit
 speechrecognition
-st-audiorec
 requests
 langchain
 langchain_community
