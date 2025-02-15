@@ -8,3 +8,4 @@ python-dotenv
 PyPDF2
 chromadb
 streamlit-webrtc
+sentence-transformers
