@@ -1,15 +1,15 @@
 # Import necessary libraries
 import os
 import streamlit as st
+from streamlit_webrtc import webrtc_streamer
 import speech_recognition as sr
-from st_audiorec import st_audiorec  # Audio recording for Streamlit
 from langchain_community.document_loaders import PyPDFLoader
 from langchain.vectorstores import Chroma
 from langchain.embeddings import HuggingFaceEmbeddings
 from langchain.chains import ConversationalRetrievalChain
 from langchain_groq import ChatGroq
-import requests
 from dotenv import load_dotenv
+import requests
 
 # Load environment variables from .env
 load_dotenv()
@@ -43,23 +43,20 @@ CHROMA_DB_DIR = "./chroma_db"
 recognizer = sr.Recognizer()
 
 # Helper Functions
-def transcribe_audio(audio_bytes, speaker):
-    """Capture and transcribe recorded audio."""
+def transcribe_audio(audio_bytes):
+    """Transcribes audio bytes using SpeechRecognition."""
     try:
-        temp_audio_path = f"temp_{speaker}.wav"
+        temp_audio_path = "temp_audio.wav"
         with open(temp_audio_path, "wb") as f:
             f.write(audio_bytes)
         with sr.AudioFile(temp_audio_path) as source:
-            audio_data = recognizer.record(source)
-            transcription = recognizer.recognize_google(audio_data)
-            st.success(f"{speaker} said: {transcription}")
+            audio = recognizer.record(source)
+            transcription = recognizer.recognize_google(audio)
             return transcription
     except sr.UnknownValueError:
-        st.error(f"Could not understand {speaker}'s audio.")
-        return None
+        return "Could not understand the audio."
     except sr.RequestError:
-        st.error("Speech Recognition service is unavailable.")
-        return None
+        return "Speech recognition service unavailable."
 
 def identify_question(text):
     """Identify embedded questions in text."""
@@ -69,9 +66,12 @@ def identify_question(text):
 
 def decide_action(question):
     """Decide whether to use Web Search or LLM."""
-    decision_prompt = f"""You are tasked with deciding the action for answering the following question:\n
-    Question: {question}\n
-    Decide whether to use 'Web Search' or 'LLM' to answer.\nProvide one of these answers: 'Web Search', 'LLM'."""
+    decision_prompt = f"""
+    You are tasked with deciding the action for answering the following question:
+    Question: {question}
+    Decide whether to use 'Web Search' or 'LLM' to answer.
+    Provide one of these answers: 'Web Search', 'LLM'.
+    """
     response = llm.invoke(decision_prompt)
     return response.content.strip()
 
@@ -121,22 +121,15 @@ if uploaded_pdf and not st.session_state.pdf_uploaded:
 vector_store = st.session_state.vector_store
 
 # Conversation Input Loop
-col1, col2 = st.columns(2)
-with col1:
-    st.subheader("🎤 Speaker 1")
-    audio_bytes = st_audiorec()
-    if audio_bytes:
-        text = transcribe_audio(audio_bytes, "Speaker 1")
-        if text:
-            st.session_state.conversation.append(("Speaker 1", text))
-
-with col2:
-    st.subheader("🎤 Speaker 2")
-    audio_bytes = st_audiorec()
-    if audio_bytes:
-        text = transcribe_audio(audio_bytes, "Speaker 2")
-        if text:
-            st.session_state.conversation.append(("Speaker 2", text))
+st.subheader("🎤 Speak Now")
+webrtc_ctx = webrtc_streamer(key="audio", mode="sendonly")
+if webrtc_ctx.audio_receiver:
+    audio_frames = webrtc_ctx.audio_receiver.get_frames()
+    for frame in audio_frames:
+        audio_data = frame.to_ndarray()
+        transcription = transcribe_audio(audio_data)
+        if transcription:
+            st.session_state.conversation.append(("Speaker", transcription))
 
 # Display Conversation
 if st.session_state.conversation:
